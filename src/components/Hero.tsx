@@ -20,9 +20,12 @@ type MaskedLineProps = {
 
 const MaskedLine = ({ text, className, lineIndex }: MaskedLineProps) => {
   const characters = text.split("");
-
+  // Apply whitespace-nowrap only to the 'Scale With Paxxmo' line
+  const isPaxxmoLine = text === "Scale With Paxxmo";
   return (
-    <h1 className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-medium tracking-tight leading-[1.1]">
+    <h1
+      className={`font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-medium tracking-tight leading-[1.1] ${isPaxxmoLine ? "whitespace-nowrap" : ""}`}
+    >
       {characters.map((char, charIndex) => (
         <span key={`${lineIndex}-${charIndex}`} className="inline-block overflow-hidden align-bottom">
           <motion.span

@@ -163,7 +163,7 @@ const Navbar = () => {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", stiffness: 320, damping: 32 }}
-              className="fixed top-0 right-0 bottom-0 z-50 w-72 bg-background border-l border-border shadow-2xl md:hidden flex flex-col pt-20 pb-8 px-6"
+              className="fixed top-0 right-0 bottom-0 z-50 w-72 bg-card border-l border-border shadow-2xl md:hidden flex flex-col pt-20 pb-8 px-6"
             >
               <nav className="flex flex-col gap-1 flex-1">
                 {navLinks.map((link, i) => (
@@ -174,7 +174,7 @@ const Navbar = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.06 * i, duration: 0.3 }}
                     onClick={(e) => handleLinkClick(e, link.href)}
-                    className="text-base font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 py-3 border-b border-border/50 last:border-0"
+                    className="text-base font-medium text-foreground hover:text-primary transition-colors duration-200 py-3 border-b border-border/50 last:border-0"
                   >
                     {link.label}
                   </motion.a>
