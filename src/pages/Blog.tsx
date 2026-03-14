@@ -62,14 +62,6 @@ const Blog = () => {
         <meta name="twitter:description" content="Insights, tips, and news on web development, app development, digital marketing, and IT services in Sri Lanka from Paxxmo." />
         <meta name="twitter:image" content="https://paxxmo.com/logo.png" />
       </Helmet>
-      <SEO
-        title="Blog - Insights & Updates"
-        description="Stay updated with the latest insights on web design, branding, UX, SEO, and digital transformation from Paxxmo's expert team."
-        keywords="web design blog, branding tips, UX design, SEO strategies, digital marketing insights, Paxxmo blog"
-        ogType="blog"
-        canonicalUrl="https://paxxmo.com/blog"
-        structuredData={structuredData}
-      />
       
       <div className="min-h-screen bg-background">
         <Navbar />
