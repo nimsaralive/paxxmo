@@ -8,6 +8,11 @@ const navigationLinks = [
   { label: "Services", href: "/#service" },
   { label: "Solutions", href: "/#solutions" },
   { label: "Blog", href: "/blog" },
+  { label: "web development", href: "/web-development-sri-lanka" },
+  { label: "app development", href: "/app-development-sri-lanka" },
+  { label: "digital marketing", href: "/digital-marketing-sri-lanka" },
+  { label: "social media marketing", href: "/social-media-marketing-sri-lanka" },
+  { label: "software development", href: "/software-development-sri-lanka" },
   { label: "Contact", href: "/#contact" },
 ];
 

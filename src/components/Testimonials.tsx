@@ -36,7 +36,7 @@ const Testimonials = () => {
                 "{testimonials[current].quote}"
               </blockquote>
               <div className="flex items-center justify-center gap-4">
-                <img
+                <img loading="lazy" decoding="async"
                   src={testimonials[current].avatar}
                   alt={testimonials[current].name}
                   className="w-14 h-14 rounded-full object-cover object-top border-2 border-primary/30"

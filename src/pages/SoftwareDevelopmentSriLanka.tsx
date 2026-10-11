@@ -1,4 +1,4 @@
-import { Helmet } from "react-helmet-async";
+import SEO from "@/components/SEO";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { ArrowUpRight, CheckCircle, Database, Cloud, Settings, Lock, GitBranch, LifeBuoy } from "lucide-react";
@@ -42,21 +42,7 @@ export default function SoftwareDevelopmentSriLanka() {
 
   return (
     <>
-      <Helmet>
-        <title>Software Development Sri Lanka | Custom ERP, CRM & SaaS | Paxxmo</title>
-        <meta name="description" content="Leading software development company in Sri Lanka. Paxxmo builds custom ERP, CRM, SaaS, and enterprise software for businesses. Agile development, NDA-protected, IP ownership transfer. Get a free consultation." />
-        <meta name="keywords" content="software development Sri Lanka, custom software Sri Lanka, ERP development Sri Lanka, CRM development Sri Lanka, SaaS development Sri Lanka, enterprise software Sri Lanka, Paxxmo" />
-        <meta name="author" content="Paxxmo" />
-        <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://paxxmo.com/software-development-sri-lanka" />
-        <meta property="og:title" content="Software Development Sri Lanka | Paxxmo" />
-        <meta property="og:description" content="Custom ERP, CRM, and SaaS software development in Sri Lanka. Built by Paxxmo for Sri Lankan enterprises and startups." />
-        <meta property="og:url" content="https://paxxmo.com/software-development-sri-lanka" />
-        <meta property="og:type" content="website" />
-        <meta property="og:image" content="https://paxxmo.com/og-image.png" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <script type="application/ld+json">{JSON.stringify(structuredData)}</script>
-      </Helmet>
+      <SEO title="Software Development Sri Lanka | Custom ERP, CRM & SaaS | Paxxmo" description="Leading software development company in Sri Lanka. Paxxmo builds custom ERP, CRM, SaaS, and enterprise software for businesses. Agile development, NDA-protected, IP ownership transfer. Get a free consultation." structuredData={structuredData} />
 
       <div className="min-h-screen bg-background text-foreground">
         <Navbar />

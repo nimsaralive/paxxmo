@@ -1,4 +1,4 @@
-import { Helmet } from "react-helmet-async";
+import SEO from "@/components/SEO";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { ArrowUpRight, CheckCircle, TrendingUp, Search, Mail, BarChart2, Target, Globe } from "lucide-react";
@@ -42,21 +42,7 @@ export default function DigitalMarketingSriLanka() {
 
   return (
     <>
-      <Helmet>
-        <title>Digital Marketing Sri Lanka | SEO, Google Ads & Social Media | Paxxmo</title>
-        <meta name="description" content="Best digital marketing agency in Sri Lanka. Paxxmo offers SEO, Google Ads, Facebook Ads, email marketing and content marketing services for Sri Lankan businesses. Get measurable results." />
-        <meta name="keywords" content="digital marketing Sri Lanka, digital marketing agency Sri Lanka, SEO Sri Lanka, Google Ads Sri Lanka, Facebook Ads Sri Lanka, online marketing Sri Lanka, Paxxmo" />
-        <meta name="author" content="Paxxmo" />
-        <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://paxxmo.com/digital-marketing-sri-lanka" />
-        <meta property="og:title" content="Digital Marketing Sri Lanka | Paxxmo" />
-        <meta property="og:description" content="SEO, Google Ads, Facebook Ads and content marketing services in Sri Lanka. Drive real results with Paxxmo." />
-        <meta property="og:url" content="https://paxxmo.com/digital-marketing-sri-lanka" />
-        <meta property="og:type" content="website" />
-        <meta property="og:image" content="https://paxxmo.com/og-image.png" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <script type="application/ld+json">{JSON.stringify(structuredData)}</script>
-      </Helmet>
+      <SEO title="Digital Marketing Sri Lanka | SEO, Google Ads & Social Media | Paxxmo" description="Best digital marketing agency in Sri Lanka. Paxxmo offers SEO, Google Ads, Facebook Ads, email marketing and content marketing services for Sri Lankan businesses. Get measurable results." structuredData={structuredData} />
 
       <div className="min-h-screen bg-background text-foreground">
         <Navbar />

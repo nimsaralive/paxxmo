@@ -1,12 +1,80 @@
 {
-  "rewrites": [
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.paxxmo.com"
+        }
+      ],
+      "destination": "https://paxxmo.com/:path*",
+      "permanent": true
+    }
+  ],
+  "headers": [
+    {
+      "source": "/px-portal",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, follow"
+        }
+      ]
     },
     {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
+      "source": "/px-manage/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, follow"
+        }
+      ]
+    },
+    {
+      "source": "/api/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/assets/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/blog/:path*",
+      "has": [
+        {
+          "type": "query",
+          "key": "q"
+        }
+      ],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, follow"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/px-manage/:path*",
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/blog/:slug",
+      "destination": "/api/blog-route?slug=:slug"
     }
   ]
 }

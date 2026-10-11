@@ -1,241 +1,123 @@
-import { create } from "zustand";
-import { supabase, BlogPost as SupabaseBlogPost } from "@/lib/supabase";
-import { blogPosts as localBlogPosts } from "@/data/blogPosts";
-
+﻿import { create } from "zustand";
+import { blogPosts as localPosts } from "@/data/blogPosts";
+import { listPosts } from "@/lib/cms/api";
+import { cleanContent, readingTime } from "@/lib/cms/content";
+import type { PostRecord, ArticleSEO, PostStatus } from "@/lib/cms/types";
 export interface BlogPost {
   id: string;
-  image: string;
-  date: string;
-  readTime: string;
+  rowId?: string;
   title: string;
   excerpt: string;
   content: string;
+  image: string;
+  date: string;
+  readTime: string;
   tags: string[];
   author: string;
   authorRole: string;
-  status: "draft" | "published";
+  status: PostStatus;
   createdAt: string;
   updatedAt: string;
+  category?: string;
+  seo?: ArticleSEO;
+  featured?: boolean;
+  imageAlt?: string;
+  imageWidth?: number;
+  imageHeight?: number;
+  imageSrcset?: string;
 }
-
-// Default blog images
 export const BLOG_IMAGES = {
   default1: "/blog/blog-1.png",
   default2: "/blog/blog-2.png",
 };
-
+export function publicPost(row: PostRecord): BlogPost {
+  const published = row.published_at || row.created_at;
+  return {
+    id: row.slug,
+    rowId: row.id,
+    title: row.title,
+    excerpt: row.excerpt,
+    content: cleanContent(row.content),
+    image: row.image || "",
+    date: new Date(published).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    }),
+    readTime: readingTime(row.content),
+    tags: row.tags || [],
+    author: row.author,
+    authorRole: "Author",
+    status: row.status,
+    createdAt: published,
+    updatedAt: row.updated_at,
+    category: row.category || "General",
+    seo: row.seo || {},
+    featured: row.featured,
+    imageAlt: row.image_alt || row.title,
+    imageWidth: row.image_width || undefined,
+    imageHeight: row.image_height || undefined,
+    imageSrcset: row.image_srcset,
+  };
+}
+export const fallbackPublicPosts = () =>
+  localPosts.map((post) => ({
+    ...post,
+    content: cleanContent(post.content),
+    status: "published" as const,
+    category: "Insights",
+    seo: {},
+    imageAlt: post.title,
+    createdAt: new Date(post.date).toISOString(),
+    updatedAt: new Date(post.date).toISOString(),
+  }));
 interface BlogStore {
   posts: BlogPost[];
   isLoading: boolean;
   error: string | null;
   fetchPosts: () => Promise<void>;
-  addPost: (post: Omit<BlogPost, "id" | "createdAt" | "updatedAt">) => Promise<string>;
-  updatePost: (id: string, updates: Partial<BlogPost>) => Promise<void>;
-  deletePost: (id: string) => Promise<void>;
-  getPost: (id: string) => BlogPost | undefined;
+  getPost: (slug: string) => BlogPost | undefined;
   getPublishedPosts: () => BlogPost[];
-  getDraftPosts: () => BlogPost[];
-  publishPost: (id: string) => Promise<void>;
-  unpublishPost: (id: string) => Promise<void>;
 }
-
-// Generate URL-friendly slug from title
-const generateSlug = (title: string): string => {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-};
-
-// Calculate read time from content
-const calculateReadTime = (content: string): string => {
-  const wordsPerMinute = 200;
-  const textContent = content.replace(/<[^>]*>/g, "");
-  const wordCount = textContent.split(/\s+/).length;
-  const minutes = Math.ceil(wordCount / wordsPerMinute);
-  return `${minutes} min read`;
-};
-
-// Format date
-const formatDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-};
-
-// Transform Supabase post to local format
-const transformFromSupabase = (post: SupabaseBlogPost): BlogPost => ({
-  id: post.slug,
-  image: post.image || BLOG_IMAGES.default1,
-  date: formatDate(post.created_at),
-  readTime: calculateReadTime(post.content),
-  title: post.title,
-  excerpt: post.excerpt,
-  content: post.content,
-  tags: post.tags || [],
-  author: post.author,
-  authorRole: "Admin",
-  status: post.published ? "published" : "draft",
-  createdAt: post.created_at,
-  updatedAt: post.updated_at,
-});
-
 export const useBlogStore = create<BlogStore>()((set, get) => ({
   posts: [],
   isLoading: false,
   error: null,
-
   fetchPosts: async () => {
+    if (get().isLoading) return;
     set({ isLoading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from("blog_posts")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      const posts = (data || []).map(transformFromSupabase);
-      set({ posts, isLoading: false });
+      set({ posts: (await listPosts()).map(publicPost), isLoading: false });
     } catch (error) {
-      console.error("Error fetching posts from Supabase, using local data:", error);
-      // Fall back to local blog posts
-      const fallbackPosts: BlogPost[] = localBlogPosts.map((post) => ({
-        ...post,
-        status: "published" as const,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }));
-      set({ posts: fallbackPosts, isLoading: false, error: null });
-    }
-  },
-
-  addPost: async (postData) => {
-    const slug = generateSlug(postData.title) + "-" + Date.now().toString(36);
-    
-    try {
-      const { data, error } = await supabase
-        .from("blog_posts")
-        .insert({
-          slug,
-          title: postData.title,
-          excerpt: postData.excerpt,
-          content: postData.content,
-          author: postData.author,
-          category: postData.tags[0] || "General",
-          tags: postData.tags,
-          image: postData.image,
-          published: postData.status === "published",
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const newPost = transformFromSupabase(data);
-      set((state) => ({
-        posts: [newPost, ...state.posts],
-      }));
-
-      return slug;
-    } catch (error) {
-      console.error("Error adding post:", error);
-      throw error;
-    }
-  },
-
-  updatePost: async (id, updates) => {
-    try {
-      const updateData: Record<string, unknown> = {};
-      
-      if (updates.title) updateData.title = updates.title;
-      if (updates.excerpt) updateData.excerpt = updates.excerpt;
-      if (updates.content) updateData.content = updates.content;
-      if (updates.author) updateData.author = updates.author;
-      if (updates.image) updateData.image = updates.image;
-      if (updates.tags) {
-        updateData.tags = updates.tags;
-        updateData.category = updates.tags[0] || "General";
+      if (get().posts.length) {
+        set({ isLoading: false });
+        return;
       }
-      if (updates.status !== undefined) {
-        updateData.published = updates.status === "published";
+      // Retained legacy articles are real existing content, never fabricated admin records.
+      if (import.meta.env.VITE_REQUIRE_LIVE_BLOG === "1") {
+        set({
+          isLoading: false,
+          error: error instanceof Error ? error.message : "Blog unavailable",
+        });
+        return;
       }
-      updateData.updated_at = new Date().toISOString();
-
-      const { error } = await supabase
-        .from("blog_posts")
-        .update(updateData)
-        .eq("slug", id);
-
-      if (error) throw error;
-
-      set((state) => ({
-        posts: state.posts.map((post) =>
-          post.id === id
-            ? {
-                ...post,
-                ...updates,
-                readTime: updates.content
-                  ? calculateReadTime(updates.content)
-                  : post.readTime,
-                updatedAt: new Date().toISOString(),
-              }
-            : post
-        ),
-      }));
-    } catch (error) {
-      console.error("Error updating post:", error);
-      throw error;
+      set({ posts: fallbackPublicPosts(), isLoading: false });
     }
   },
-
-  deletePost: async (id) => {
-    try {
-      const { error } = await supabase
-        .from("blog_posts")
-        .delete()
-        .eq("slug", id);
-
-      if (error) throw error;
-
-      set((state) => ({
-        posts: state.posts.filter((post) => post.id !== id),
-      }));
-    } catch (error) {
-      console.error("Error deleting post:", error);
-      throw error;
-    }
-  },
-
-  getPost: (id) => {
-    return get().posts.find((post) => post.id === id);
-  },
-
-  getPublishedPosts: () => {
-    return get().posts.filter((post) => post.status === "published");
-  },
-
-  getDraftPosts: () => {
-    return get().posts.filter((post) => post.status === "draft");
-  },
-
-  publishPost: async (id) => {
-    await get().updatePost(id, { status: "published", date: formatDate(new Date().toISOString()) });
-  },
-
-  unpublishPost: async (id) => {
-    await get().updatePost(id, { status: "draft" });
-  },
+  getPost: (slug) =>
+    get().posts.find((p) => p.id === slug && p.status === "published"),
+  getPublishedPosts: () => get().posts.filter((p) => p.status === "published"),
 }));
-
-// Helper exports
-export const getRelatedPosts = (posts: BlogPost[], currentId: string, limit = 2) => {
-  const currentPost = posts.find((p) => p.id === currentId);
-  if (!currentPost) return [];
+export const getRelatedPosts = (posts: BlogPost[], id: string, limit = 3) => {
+  const current = posts.find((p) => p.id === id);
   return posts
-    .filter((p) => p.id !== currentId && p.status === "published" && p.tags.some((tag) => currentPost.tags.includes(tag)))
+    .filter(
+      (p) =>
+        p.id !== id &&
+        p.status === "published" &&
+        (p.category === current?.category ||
+          p.tags.some((tag) => current?.tags.includes(tag))),
+    )
     .slice(0, limit);
 };

@@ -1,6 +1,5 @@
-User-agent: *
+﻿User-agent: *
 Allow: /
-Disallow: /px-portal
-Disallow: /px-manage
+Disallow: /api/
 
 Sitemap: https://paxxmo.com/sitemap.xml

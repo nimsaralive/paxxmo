@@ -1,335 +1,479 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+﻿import { useEffect, useMemo, useState } from "react";
+import { useCallback } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard,
-  FileText,
-  PlusCircle,
-  LogOut,
-  Eye,
-  Edit,
-  Trash2,
-  MoreVertical,
-  Globe,
-  FileEdit,
+  ArrowUpRight,
   Search,
+  Plus,
+  FileText,
+  MoreHorizontal,
+  RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner";
+import AdminShell from "@/components/cms/AdminShell";
+import {
+  listPosts,
+  deletePost,
+  duplicatePost,
+  setPostStatus,
+  messageFor,
+} from "@/lib/cms/api";
+import {
+  statusLabels,
+  type PostRecord,
+  type PostStatus,
+} from "@/lib/cms/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBlogStore, BlogPost } from "@/stores/blogStore";
-import { revealInView, revealTransition } from "@/lib/motion";
-
-const AdminDashboard = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const { posts, deletePost, publishPost, unpublishPost, fetchPosts, isLoading } = useBlogStore();
-  
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "published" | "draft">("all");
-  const [activeMenu, setActiveMenu] = useState<string | null>(null);
-
+export default function AdminDashboard() {
+  const { user } = useAuth(),
+    { pathname } = useLocation();
+  const overview = pathname === "/px-manage";
+  const [posts, setPosts] = useState<PostRecord[]>([]),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState("");
+  const [search, setSearch] = useState(""),
+    [status, setStatus] = useState("all"),
+    [category, setCategory] = useState("all"),
+    [author, setAuthor] = useState("all"),
+    [sort, setSort] = useState("newest"),
+    [after, setAfter] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set()),
+    [busy, setBusy] = useState(false),
+    [page, setPage] = useState(1);
+  const canPublish = user?.role === "admin" || user?.role === "editor";
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const rows = await listPosts(true);
+      setPosts(
+        user?.role === "author"
+          ? rows.filter((p) => p.author_id === user.id)
+          : rows,
+      );
+    } catch (e) {
+      setError(messageFor(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, user?.role]);
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
-
-  const handleLogout = () => {
-    logout();
-    navigate("/");
+    void load();
+  }, [load]);
+  const filtered = useMemo(
+    () =>
+      posts
+        .filter(
+          (p) =>
+            (status === "all" || p.status === status) &&
+            (category === "all" || p.category === category) &&
+            (author === "all" || p.author === author) &&
+            (!after || p.created_at.slice(0, 10) >= after) &&
+            `${p.title} ${p.excerpt} ${p.tags.join(" ")}`
+              .toLowerCase()
+              .includes(search.toLowerCase()),
+        )
+        .sort((a, b) =>
+          sort === "oldest"
+            ? a.created_at.localeCompare(b.created_at)
+            : sort === "edited"
+              ? b.updated_at.localeCompare(a.updated_at)
+              : b.created_at.localeCompare(a.created_at),
+        ),
+    [posts, status, category, author, after, search, sort],
+  );
+  useEffect(() => {
+    setPage(1);
+    setSelected(new Set());
+  }, [search, status, category, author, after, sort]);
+  const visible = filtered.slice((page - 1) * 10, page * 10);
+  const run = async (action: string, targets: PostRecord[]) => {
+    if (!targets.length) return;
+    if (
+      ["delete", "archived", "draft"].includes(action) &&
+      !window.confirm(
+        `${action === "delete" ? "Permanently delete" : action === "archived" ? "Archive" : "Unpublish"} ${targets.length} article(s)? ${action === "delete" ? "Article revisions will also be deleted. Media files are retained." : ""}`,
+      )
+    )
+      return;
+    setBusy(true);
+    let failures = 0;
+    for (const post of targets)
+      try {
+        if (action === "delete") await deletePost(post.id);
+        else if (action === "duplicate") await duplicatePost(post);
+        else await setPostStatus(post, action as PostStatus);
+      } catch (e) {
+        failures++;
+        toast.error(`${post.title}: ${messageFor(e)}`);
+      }
+    if (failures < targets.length)
+      toast.success(`${targets.length - failures} article(s) updated.`);
+    setSelected(new Set());
+    await load();
+    setBusy(false);
   };
-
-  const filteredPosts = posts.filter((post) => {
-    const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.excerpt.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filterStatus === "all" || post.status === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
-
-  const publishedCount = posts.filter((p) => p.status === "published").length;
-  const draftCount = posts.filter((p) => p.status === "draft").length;
-
-  const handleDelete = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this post?")) {
-      await deletePost(id);
-    }
-    setActiveMenu(null);
-  };
-
-  const togglePublish = async (post: BlogPost) => {
-    if (post.status === "published") {
-      await unpublishPost(post.id);
-    } else {
-      await publishPost(post.id);
-    }
-    setActiveMenu(null);
-  };
-
   return (
-    <div className="min-h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-card border-r border-border p-6 flex flex-col">
-        {/* Logo */}
-        <div className="mb-8">
-          <h1 className="font-display text-2xl text-foreground">Paxxmo</h1>
-          <p className="text-xs text-muted-foreground">Admin Dashboard</p>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 space-y-2">
-          <Link
-            to="/px-manage"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary/10 text-primary font-medium"
-          >
-            <LayoutDashboard className="w-5 h-5" />
-            Dashboard
-          </Link>
-          <Link
-            to="/px-manage/posts"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <FileText className="w-5 h-5" />
-            All Posts
-          </Link>
-          <Link
-            to="/px-manage/posts/new"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <PlusCircle className="w-5 h-5" />
-            New Post
-          </Link>
-        </nav>
-
-        {/* User Info */}
-        <div className="pt-6 border-t border-border">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-display">
-              {user?.name.charAt(0)}
+    <AdminShell
+      title={overview ? "Good ideas start here." : "All articles"}
+      subtitle={
+        overview
+          ? "A little clarity for your next big story."
+          : "Create, organize and publish stories worth reading."
+      }
+      action={
+        <Link to="/px-manage/posts/new" className="cms-button primary">
+          <Plus size={16} />
+          New article
+        </Link>
+      }
+    >
+      {overview && (
+        <>
+          <div className="cms-stats">
+            {(["all", "published", "draft", "scheduled"] as const).map((s) => (
+              <button key={s} onClick={() => setStatus(s)} className="cms-stat">
+                <span>{s === "all" ? "Total articles" : statusLabels[s]}</span>
+                <strong>
+                  {loading
+                    ? "—"
+                    : s === "all"
+                      ? posts.length
+                      : posts.filter((p) => p.status === s).length}
+                </strong>
+                <small>
+                  {s === "scheduled"
+                    ? "Ready for their moment"
+                    : "In your editorial workspace"}
+                </small>
+              </button>
+            ))}
+          </div>
+          <div className="cms-editorial-callout">
+            <div>
+              <small>YOUR NEXT CHAPTER</small>
+              <h2>
+                Make something
+                <br />
+                worth sharing.
+              </h2>
+              <p>
+                From a first thought to a finished story.
+                <br />
+                Your writing space is ready.
+              </p>
+              <Link className="cms-button" to="/px-manage/posts/new">
+                Start writing <ArrowUpRight size={16} />
+              </Link>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">{user?.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{user?.role}</p>
+            <div className="cms-callout-art" aria-hidden="true">
+              <FileText size={100} strokeWidth={0.6} />
+              <span>Ideas. Words. Impact.</span>
             </div>
+          </div>
+        </>
+      )}
+      <section className="cms-panel">
+        <div className="cms-panel-heading">
+          <div>
+            <h2>{overview ? "Recent stories" : "Your editorial library"}</h2>
+            <p>{posts.length} articles in your workspace</p>
           </div>
           <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 w-full px-4 py-2 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors text-sm"
+            className="cms-button"
+            onClick={load}
+            disabled={loading}
+            aria-label="Refresh articles"
           >
-            <LogOut className="w-4 h-4" />
-            Sign Out
+            <RefreshCw size={16} />
           </button>
         </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="ml-64 p-8">
-        <motion.div {...revealInView} transition={revealTransition}>
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="font-display text-3xl text-foreground">Dashboard</h2>
-              <p className="text-muted-foreground">Manage your blog posts</p>
-            </div>
-            <Link
-              to="/px-manage/posts/new"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
-            >
-              <PlusCircle className="w-5 h-5" />
-              New Post
+        <div className="cms-filters">
+          <label className="cms-search">
+            <Search size={17} />
+            <input
+              aria-label="Search articles"
+              placeholder="Search articles, topics, ideas…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+          <select
+            aria-label="Filter status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <option value="all">All statuses</option>
+            {Object.entries(statusLabels).map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="all">All categories</option>
+            {[...new Set(posts.map((p) => p.category))].map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter author"
+            value={author}
+            onChange={(e) => setAuthor(e.target.value)}
+          >
+            <option value="all">All authors</option>
+            {[...new Set(posts.map((p) => p.author))].map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+          <input
+            type="date"
+            aria-label="Created on or after"
+            value={after}
+            onChange={(e) => setAfter(e.target.value)}
+          />
+          <select
+            aria-label="Sort articles"
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="edited">Last edited</option>
+          </select>
+        </div>
+        {selected.size > 0 && (
+          <div className="cms-bulk">
+            <span>{selected.size} selected</span>
+            {[
+              "in_review",
+              ...(canPublish
+                ? ["published", "draft", "archived", "delete"]
+                : []),
+            ].map((a) => (
+              <button
+                key={a}
+                className="cms-button"
+                disabled={busy}
+                onClick={() =>
+                  run(
+                    a,
+                    posts.filter((p) => selected.has(p.id)),
+                  )
+                }
+              >
+                {a === "delete" ? "Delete" : statusLabels[a as PostStatus]}
+              </button>
+            ))}
+          </div>
+        )}
+        {error ? (
+          <div className="cms-state error" role="alert">
+            <h3>We couldn’t load your articles</h3>
+            <p>{error}</p>
+            <p>
+              Check Supabase connectivity, your CMS role and the Blog 2.0
+              migration.
+            </p>
+            <button className="cms-button" onClick={load}>
+              Try again
+            </button>
+          </div>
+        ) : loading ? (
+          <div className="cms-state" role="status">
+            Loading your stories…
+          </div>
+        ) : !visible.length ? (
+          <div className="cms-state">
+            <FileText size={32} />
+            <h3>
+              {posts.length
+                ? "No matching articles"
+                : "Your first story starts here"}
+            </h3>
+            <p>
+              {posts.length
+                ? "Try a different search or filter."
+                : "Create a draft and give your ideas a place to grow."}
+            </p>
+            <Link className="cms-button primary" to="/px-manage/posts/new">
+              Write an article
             </Link>
           </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-card border border-border rounded-xl p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-display text-foreground">{posts.length}</p>
-                  <p className="text-sm text-muted-foreground">Total Posts</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <Globe className="w-6 h-6 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-display text-foreground">{publishedCount}</p>
-                  <p className="text-sm text-muted-foreground">Published</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                  <FileEdit className="w-6 h-6 text-yellow-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-display text-foreground">{draftCount}</p>
-                  <p className="text-sm text-muted-foreground">Drafts</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search posts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
-            </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
-              className="px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-            >
-              <option value="all">All Posts</option>
-              <option value="published">Published</option>
-              <option value="draft">Drafts</option>
-            </select>
-          </div>
-
-          {/* Posts Table */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-muted/50">
+        ) : (
+          <div className="cms-table-wrap">
+            <table className="cms-table">
+              <thead>
                 <tr>
-                  <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Title</th>
-                  <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Status</th>
-                  <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Date</th>
-                  <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Tags</th>
-                  <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Actions</th>
+                  <th>
+                    <input
+                      type="checkbox"
+                      aria-label="Select page"
+                      checked={visible.every((p) => selected.has(p.id))}
+                      onChange={(e) =>
+                        setSelected(
+                          e.target.checked
+                            ? new Set(visible.map((p) => p.id))
+                            : new Set(),
+                        )
+                      }
+                    />
+                  </th>
+                  <th>Article</th>
+                  <th>Status</th>
+                  <th>Author</th>
+                  <th>Last edited</th>
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
-                {filteredPosts.map((post) => (
-                  <tr key={post.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={post.image}
-                          alt={post.title}
-                          className="w-12 h-12 rounded-lg object-cover"
-                        />
-                        <div className="min-w-0">
-                          <p className="font-medium text-foreground truncate max-w-[300px]">{post.title}</p>
-                          <p className="text-sm text-muted-foreground truncate max-w-[300px]">{post.excerpt}</p>
-                        </div>
-                      </div>
+              <tbody>
+                {visible.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${p.title}`}
+                        checked={selected.has(p.id)}
+                        onChange={(e) => {
+                          const next = new Set(selected);
+                          if (e.target.checked) next.add(p.id);
+                          else next.delete(p.id);
+                          setSelected(next);
+                        }}
+                      />
                     </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          post.status === "published"
-                            ? "bg-green-500/10 text-green-500"
-                            : "bg-yellow-500/10 text-yellow-500"
-                        }`}
+                    <td>
+                      <Link
+                        to={`/px-manage/posts/${p.slug}/edit`}
+                        className="cms-article-cell"
                       >
-                        {post.status === "published" ? "Published" : "Draft"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">{post.date}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-1 flex-wrap">
-                        {post.tags.slice(0, 2).map((tag) => (
-                          <span
-                            key={tag}
-                            className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                        {post.tags.length > 2 && (
-                          <span className="px-2 py-0.5 text-xs text-muted-foreground">
-                            +{post.tags.length - 2}
+                        {p.image ? (
+                          <img src={p.image} alt="" loading="lazy" />
+                        ) : (
+                          <span className="cms-thumbnail">
+                            <FileText />
                           </span>
                         )}
-                      </div>
+                        <div>
+                          <strong>{p.title}</strong>
+                          <small>
+                            {p.category} · {p.tags.slice(0, 2).join(", ")}
+                          </small>
+                        </div>
+                      </Link>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2 relative">
-                        <Link
-                          to={`/blog/${post.id}`}
-                          target="_blank"
-                          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                          title="View"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                        <Link
-                          to={`/px-manage/posts/${post.id}/edit`}
-                          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                        <div className="relative">
+                    <td>
+                      <span className={`cms-badge ${p.status}`}>
+                        {statusLabels[p.status]}
+                      </span>
+                      {p.scheduled_at && p.status === "scheduled" && (
+                        <small className="block mt-1">
+                          {new Date(p.scheduled_at).toLocaleString()}
+                        </small>
+                      )}
+                    </td>
+                    <td>{p.author}</td>
+                    <td>{new Date(p.updated_at).toLocaleDateString()}</td>
+                    <td>
+                      <details className="cms-actions">
+                        <summary aria-label={`Actions for ${p.title}`}>
+                          <MoreHorizontal size={18} />
+                        </summary>
+                        <div>
+                          <Link to={`/px-manage/posts/${p.slug}/edit`}>
+                            Edit article
+                          </Link>
+                          {p.status === "published" && (
+                            <a
+                              href={`/blog/${p.slug}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              View article
+                            </a>
+                          )}
                           <button
-                            onClick={() => setActiveMenu(activeMenu === post.id ? null : post.id)}
-                            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            disabled={busy}
+                            onClick={() => run("duplicate", [p])}
                           >
-                            <MoreVertical className="w-4 h-4" />
+                            Duplicate as draft
                           </button>
-                          {activeMenu === post.id && (
-                            <div className="absolute right-0 top-full mt-1 w-40 bg-card border border-border rounded-lg shadow-lg py-1 z-10">
+                          <button
+                            disabled={busy}
+                            onClick={() => run("in_review", [p])}
+                          >
+                            Send for review
+                          </button>
+                          {canPublish && (
+                            <>
                               <button
-                                onClick={() => togglePublish(post)}
-                                className="w-full px-4 py-2 text-left text-sm hover:bg-muted transition-colors"
+                                disabled={busy}
+                                onClick={() =>
+                                  run(
+                                    p.status === "published"
+                                      ? "draft"
+                                      : "published",
+                                    [p],
+                                  )
+                                }
                               >
-                                {post.status === "published" ? "Unpublish" : "Publish"}
+                                {p.status === "published"
+                                  ? "Unpublish"
+                                  : "Publish"}
                               </button>
                               <button
-                                onClick={() => handleDelete(post.id)}
-                                className="w-full px-4 py-2 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                                disabled={busy}
+                                onClick={() => run("archived", [p])}
                               >
-                                Delete
+                                Archive
                               </button>
-                            </div>
+                              <button
+                                disabled={busy}
+                                onClick={() => run("delete", [p])}
+                              >
+                                Delete permanently
+                              </button>
+                            </>
                           )}
                         </div>
-                      </div>
+                      </details>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-
-            {filteredPosts.length === 0 && (
-              <div className="text-center py-12">
-                <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No posts found</p>
-              </div>
-            )}
           </div>
-
-          {/* Quick Links */}
-          <div className="mt-6 flex items-center gap-4">
-            <Link
-              to="/"
-              target="_blank"
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+        )}
+        <div className="cms-pagination">
+          <small>
+            {filtered.length
+              ? `${(page - 1) * 10 + 1}–${Math.min(page * 10, filtered.length)} of ${filtered.length}`
+              : "0 articles"}
+          </small>
+          <div>
+            <button
+              className="cms-button"
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
             >
-              View Website →
-            </Link>
-            <Link
-              to="/blog"
-              target="_blank"
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              Previous
+            </button>
+            <button
+              className="cms-button"
+              disabled={page * 10 >= filtered.length}
+              onClick={() => setPage(page + 1)}
             >
-              View Blog →
-            </Link>
+              Next
+            </button>
           </div>
-        </motion.div>
-      </main>
-    </div>
+        </div>
+      </section>
+    </AdminShell>
   );
-};
-
-export default AdminDashboard;
+}

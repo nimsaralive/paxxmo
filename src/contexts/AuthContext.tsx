@@ -1,102 +1,109 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+﻿import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  type ReactNode,
+} from "react";
 import { supabase } from "@/lib/supabase";
-import { User as SupabaseUser } from "@supabase/supabase-js";
-
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 interface User {
+  id: string;
   email: string;
   name: string;
-  role: string;
+  role: string | null;
 }
-
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  signUp: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<{ success: boolean; message: string }>;
 }
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
+  const [user, setUser] = useState<User | null>(null),
+    [isLoading, setIsLoading] = useState(true);
   useEffect(() => {
-    // Check for existing session
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser({
-          email: session.user.email || "",
-          name: session.user.user_metadata?.name || "Admin",
-          role: session.user.user_metadata?.role || "Admin",
-        });
+    let active = true;
+    const loadMember = async (account: SupabaseUser | undefined) => {
+      if (!account) {
+        if (active) {
+          setUser(null);
+          setIsLoading(false);
+        }
+        return;
       }
-      setIsLoading(false);
+      try {
+        const { data } = await supabase
+          .from("cms_members")
+          .select("role,display_name")
+          .eq("user_id", account.id)
+          .abortSignal(AbortSignal.timeout(15000))
+          .maybeSingle();
+        if (active)
+          setUser({
+            id: account.id,
+            email: account.email || "",
+            name: data?.display_name || account.user_metadata?.name || "Member",
+            role: data?.role || null,
+          });
+      } catch {
+        if (active)
+          setUser({
+            id: account.id,
+            email: account.email || "",
+            name: "Member",
+            role: null,
+          });
+      } finally {
+        if (active) setIsLoading(false);
+      }
     };
-
-    getSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser({
-          email: session.user.email || "",
-          name: session.user.user_metadata?.name || "Admin",
-          role: session.user.user_metadata?.role || "Admin",
-        });
-      } else {
-        setUser(null);
-      }
+    void supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => loadMember(session?.user));
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoading(true);
+      queueMicrotask(() => {
+        void loadMember(session?.user);
+      });
     });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
-
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password: password.trim(),
+      email: email.trim(),
+      password,
     });
-
-    if (error || !data.user) {
-      console.error("Login error:", error?.message);
-      return false;
-    }
-
-    return true;
+    return !error && !!data.user;
   };
-
-  const signUp = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password: password.trim(),
-      options: {
-        data: {
-          name: "Admin",
-          role: "Admin",
-        },
-      },
-    });
-
-    if (error) {
-      return { success: false, message: error.message };
-    }
-
-    if (data.user && !data.session) {
-      return { success: true, message: "Check your email to confirm your account!" };
-    }
-
-    return { success: true, message: "Account created successfully!" };
-  };
-
   const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    const { error } = await supabase.auth.signOut();
+    if (!error) setUser(null);
   };
-
+  const signUp = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { name: "Member" } },
+    });
+    return {
+      success: !error,
+      message:
+        error?.message ||
+        "Check your email. A CMS administrator must assign your role before you can edit.",
+    };
+  };
   return (
     <AuthContext.Provider
       value={{
@@ -112,11 +119,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     </AuthContext.Provider>
   );
 };
-
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  const value = useContext(AuthContext);
+  if (!value) throw new Error("useAuth must be used within an AuthProvider");
+  return value;
 };

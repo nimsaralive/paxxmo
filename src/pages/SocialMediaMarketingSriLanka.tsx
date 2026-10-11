@@ -1,4 +1,4 @@
-import { Helmet } from "react-helmet-async";
+import SEO from "@/components/SEO";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { ArrowUpRight, CheckCircle, Instagram, Facebook, Youtube, MessageSquare, TrendingUp, Camera } from "lucide-react";
@@ -42,21 +42,7 @@ export default function SocialMediaMarketingSriLanka() {
 
   return (
     <>
-      <Helmet>
-        <title>Social Media Marketing Sri Lanka | Facebook, Instagram & TikTok | Paxxmo</title>
-        <meta name="description" content="Top social media marketing agency in Sri Lanka. Paxxmo manages Facebook, Instagram, TikTok and YouTube for Sri Lankan businesses. Content creation, paid ads, and community management. Get a free quote." />
-        <meta name="keywords" content="social media marketing Sri Lanka, Facebook marketing Sri Lanka, Instagram marketing Sri Lanka, social media agency Colombo, TikTok marketing Sri Lanka, Paxxmo" />
-        <meta name="author" content="Paxxmo" />
-        <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://paxxmo.com/social-media-marketing-sri-lanka" />
-        <meta property="og:title" content="Social Media Marketing Sri Lanka | Paxxmo" />
-        <meta property="og:description" content="Expert social media management and paid advertising for Sri Lankan businesses. Facebook, Instagram, TikTok and more." />
-        <meta property="og:url" content="https://paxxmo.com/social-media-marketing-sri-lanka" />
-        <meta property="og:type" content="website" />
-        <meta property="og:image" content="https://paxxmo.com/og-image.png" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <script type="application/ld+json">{JSON.stringify(structuredData)}</script>
-      </Helmet>
+      <SEO title="Social Media Marketing Sri Lanka | Facebook, Instagram & TikTok | Paxxmo" description="Top social media marketing agency in Sri Lanka. Paxxmo manages Facebook, Instagram, TikTok and YouTube for Sri Lankan businesses. Content creation, paid ads, and community management. Get a free quote." structuredData={structuredData} />
 
       <div className="min-h-screen bg-background text-foreground">
         <Navbar />

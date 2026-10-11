@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { revealInView, revealTransition } from "@/lib/motion";
-import heroImage from "@/assets/hero-collaboration.png";
+import heroImage from "@/assets/hero-collaboration.webp";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -23,7 +23,7 @@ const MaskedLine = ({ text, className, lineIndex }: MaskedLineProps) => {
   // Apply whitespace-nowrap only to the 'Scale With Paxxmo' line
   const isPaxxmoLine = text === "Scale With Paxxmo";
   return (
-    <h1
+    <div
       className={`font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-medium tracking-tight leading-[1.1] ${isPaxxmoLine ? "whitespace-nowrap" : ""}`}
     >
       {characters.map((char, charIndex) => (
@@ -42,7 +42,7 @@ const MaskedLine = ({ text, className, lineIndex }: MaskedLineProps) => {
           </motion.span>
         </span>
       ))}
-    </h1>
+    </div>
   );
 };
 
@@ -90,11 +90,11 @@ const Hero = () => {
     <section ref={sectionRef} className="h-screen relative overflow-hidden px-6">
       {/* Header content */}
       <div className="pt-28 pb-8 text-center relative z-10">
-        <div className="space-y-1">
+        <h1 aria-label="Paxxmo web, app development and digital marketing: Build With Clarity, Scale With Paxxmo" className="space-y-1">
           {heroLines.map((line, index) => (
             <MaskedLine key={line.text} text={line.text} className={line.className} lineIndex={index} />
           ))}
-        </div>
+        </h1>
       </div>
 
       {/* Video/Image container - positioned in center with text on sides */}
@@ -116,6 +116,10 @@ const Hero = () => {
         >
           <img
             src={heroImage}
+            width={640}
+            height={640}
+            {...{ fetchpriority: "high" }}
+            decoding="async"
             alt="Business professionals collaborating"
             className="w-full aspect-[4/3] object-cover"
           />

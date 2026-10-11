@@ -1,4 +1,4 @@
-import { Helmet } from "react-helmet-async";
+import SEO from "@/components/SEO";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { ArrowUpRight, CheckCircle, Smartphone, Cpu, RefreshCw, Star, Users } from "lucide-react";
@@ -42,21 +42,7 @@ export default function AppDevelopmentSriLanka() {
 
   return (
     <>
-      <Helmet>
-        <title>Mobile App Development Sri Lanka | iOS & Android Apps | Paxxmo</title>
-        <meta name="description" content="Top mobile app development company in Sri Lanka. Paxxmo builds custom iOS and Android apps for startups and businesses. Flutter, React Native, and native development. Get a free quote." />
-        <meta name="keywords" content="mobile app development Sri Lanka, iOS app development Sri Lanka, Android app development Sri Lanka, Flutter app Sri Lanka, custom app development, Paxxmo" />
-        <meta name="author" content="Paxxmo" />
-        <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://paxxmo.com/app-development-sri-lanka" />
-        <meta property="og:title" content="Mobile App Development Sri Lanka | Paxxmo" />
-        <meta property="og:description" content="Custom iOS and Android app development in Sri Lanka. Built by Paxxmo for startups and businesses." />
-        <meta property="og:url" content="https://paxxmo.com/app-development-sri-lanka" />
-        <meta property="og:type" content="website" />
-        <meta property="og:image" content="https://paxxmo.com/og-image.png" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <script type="application/ld+json">{JSON.stringify(structuredData)}</script>
-      </Helmet>
+      <SEO title="Mobile App Development Sri Lanka | iOS & Android Apps | Paxxmo" description="Top mobile app development company in Sri Lanka. Paxxmo builds custom iOS and Android apps for startups and businesses. Flutter, React Native, and native development. Get a free quote." structuredData={structuredData} />
 
       <div className="min-h-screen bg-background text-foreground">
         <Navbar />

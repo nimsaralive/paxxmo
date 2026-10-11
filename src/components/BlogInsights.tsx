@@ -48,7 +48,7 @@ const BlogInsights = () => {
                 whileTap={tapScale}
               >
                 <div className="overflow-hidden rounded-2xl mb-4 bg-card">
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={post.image}
                     alt={post.title}
                     className="w-full aspect-[4/3] object-cover transition-transform duration-700 group-hover:scale-105"

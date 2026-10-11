@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus } from "lucide-react";
-import cyberpunkPerson from "@/assets/cyberpunk-person.png";
+import cyberpunkPerson from "@/assets/cyberpunk-person.webp";
 import { cardHover, revealInView, revealTransition, tapScale } from "@/lib/motion";
 
 const services = [
@@ -98,8 +98,10 @@ const Services = () => {
             transition={{ ...revealTransition, delay: 0.3 }}
             className="hidden lg:flex items-center justify-center"
           >
-            <img
+            <img loading="lazy" decoding="async"
               src={cyberpunkPerson}
+              width={640}
+              height={640}
               alt="Cyberpunk person with glowing visor"
               className="w-full max-w-md h-auto"
             />

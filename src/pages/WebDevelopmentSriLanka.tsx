@@ -1,4 +1,4 @@
-import { Helmet } from "react-helmet-async";
+import SEO from "@/components/SEO";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { ArrowUpRight, CheckCircle, Code, Layers, Zap, Globe, Shield } from "lucide-react";
@@ -42,23 +42,7 @@ export default function WebDevelopmentSriLanka() {
 
   return (
     <>
-      <Helmet>
-        <title>Web Development Sri Lanka | Custom Websites & Web Apps | Paxxmo</title>
-        <meta name="description" content="Looking for the best web development company in Sri Lanka? Paxxmo builds fast, SEO-ready, mobile-first websites and web applications for businesses and startups. Get a free quote today." />
-        <meta name="keywords" content="web development Sri Lanka, website development company Sri Lanka, custom website Sri Lanka, web design Colombo, affordable website Sri Lanka, ecommerce website Sri Lanka, Paxxmo" />
-        <meta name="author" content="Paxxmo" />
-        <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://paxxmo.com/web-development-sri-lanka" />
-        <meta property="og:title" content="Web Development Sri Lanka | Paxxmo" />
-        <meta property="og:description" content="Professional web development services in Sri Lanka. Custom sites, web apps & e-commerce solutions built by Paxxmo." />
-        <meta property="og:url" content="https://paxxmo.com/web-development-sri-lanka" />
-        <meta property="og:type" content="website" />
-        <meta property="og:image" content="https://paxxmo.com/og-image.png" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Web Development Sri Lanka | Paxxmo" />
-        <meta name="twitter:description" content="Professional web development services in Sri Lanka. Custom sites, web apps & e-commerce solutions." />
-        <script type="application/ld+json">{JSON.stringify(structuredData)}</script>
-      </Helmet>
+      <SEO title="Web Development Sri Lanka | Custom Websites & Web Apps | Paxxmo" description="Looking for the best web development company in Sri Lanka? Paxxmo builds fast, SEO-ready, mobile-first websites and web applications for businesses and startups. Get a free quote today." structuredData={structuredData} />
 
       <div className="min-h-screen bg-background text-foreground">
         <Navbar />

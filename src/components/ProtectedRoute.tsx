@@ -6,7 +6,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
 
   if (isLoading) {
     return (
@@ -20,6 +20,11 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/px-portal" replace />;
   }
 
+  if (!user?.role) return <main className="min-h-screen flex items-center justify-center p-6"><div className="max-w-md space-y-4">
+    <h1 className="text-2xl">CMS access is required</h1>
+    <p className="text-muted-foreground">Your account needs a CMS role. Check database connectivity and apply the Blog 2.0 migration if access previously worked.</p>
+    <button onClick={logout} className="px-4 py-2 border rounded-lg">Sign out</button>
+  </div></main>;
   return <>{children}</>;
 };
 

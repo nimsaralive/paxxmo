@@ -1,230 +1,218 @@
-import { useEffect } from "react";
-import { useParams, Link, Navigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { ArrowLeft, Calendar, Clock, User, Tag } from "lucide-react";
+﻿import { useEffect } from "react";
+import { Link, useParams } from "react-router-dom";
+import { ArrowLeft, ArrowRight, Link2 } from "lucide-react";
+import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import SEO from "@/components/SEO";
-import { useBlogStore } from "@/stores/blogStore";
-import { revealInView, revealTransition } from "@/lib/motion";
-
-const BlogPost = () => {
-  const { slug } = useParams<{ slug: string }>();
-  const { getPost, getPublishedPosts, fetchPosts, isLoading, posts } = useBlogStore();
-
+import SEO, { absoluteUrl } from "@/components/SEO";
+import ArticleCard from "@/components/cms/ArticleCard";
+import { useBlogStore, getRelatedPosts } from "@/stores/blogStore";
+import { articleContent, slugify } from "@/lib/cms/content";
+import NotFound from "./NotFound";
+export default function BlogPost() {
+  const { slug } = useParams();
+  const { getPost, getPublishedPosts, fetchPosts, isLoading } = useBlogStore();
   useEffect(() => {
-    fetchPosts();
+    void fetchPosts();
   }, [fetchPosts]);
-
   const post = getPost(slug || "");
-  const allPosts = getPublishedPosts();
-
-  // Show loading while fetching
-  if (isLoading && posts.length === 0) {
+  const posts = getPublishedPosts();
+  if (isLoading && !posts.length)
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
+      <main className="cms-state min-h-screen" role="status">
+        Opening your story…
+      </main>
     );
-  }
-
-  if (!post || post.status !== "published") {
-    return <Navigate to="/blog" replace />;
-  }
-
-  // Get related posts
-  const relatedPosts = allPosts
-    .filter((p) => p.id !== post.id && p.tags.some((tag) => post.tags.includes(tag)))
-    .slice(0, 2);
-
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    "headline": post.title,
-    "description": post.excerpt,
-    "image": post.image,
-    "datePublished": post.date,
-    "dateModified": post.date,
-    "author": {
-      "@type": "Person",
-      "name": post.author,
-      "jobTitle": post.authorRole
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "Paxxmo",
-      "logo": {
-        "@type": "ImageObject",
-        "url": "https://paxxmo.com/logo.png"
-      }
-    },
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": `https://paxxmo.com/blog/${post.id}`
-    },
-    "keywords": post.tags.join(", ")
-  };
-
+  if (!post) return <NotFound />;
+  const { content, headings } = articleContent(post.content),
+    related = getRelatedPosts(posts, post.id, 3),
+    position = posts.findIndex((p) => p.id === post.id),
+    previous = posts[position - 1],
+    next = posts[position + 1];
+  const url = `https://paxxmo.com/blog/${post.id}`,
+    schema = {
+      "@type": "BlogPosting",
+      headline: post.title,
+      description: post.excerpt,
+      ...(post.image ? { image: absoluteUrl(post.image) } : {}),
+      datePublished: post.createdAt,
+      dateModified: post.updatedAt,
+      author: { "@type": "Person", name: post.author },
+      publisher: { "@id": "https://paxxmo.com/#organization" },
+      mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    };
   return (
     <>
       <SEO
-        title={post.title}
-        description={post.excerpt}
-        keywords={post.tags.join(", ")}
+        title={post.seo?.title || post.title}
+        description={post.seo?.description || post.excerpt}
+        canonicalUrl={post.seo?.canonical || url}
         ogType="article"
-        canonicalUrl={`https://paxxmo.com/blog/${post.id}`}
-        structuredData={structuredData}
+        ogImage={post.seo?.image || post.image || "/og-image.png"}
+        socialTitle={post.seo?.socialTitle}
+        socialDescription={post.seo?.socialDescription}
+        noindex={post.seo?.noindex}
+        structuredData={schema}
       />
-
-      <div className="min-h-screen bg-background">
+      <div className="journal">
         <Navbar />
-
-        {/* Article Header */}
-        <article>
-          <header className="pt-32 pb-12 lg:pt-40 lg:pb-16 px-6 lg:px-16 border-b border-border">
-            <div className="max-w-4xl mx-auto">
-              <motion.div {...revealInView} transition={revealTransition}>
-                <Link
-                  to="/blog"
-                  className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors mb-8"
+        <main className="journal-article">
+          <nav className="journal-breadcrumbs" aria-label="Breadcrumbs">
+            <Link to="/">Home</Link>
+            <span>/</span>
+            <Link to="/blog">Journal</Link>
+            <span>/</span>
+            <span aria-current="page">{post.title}</span>
+          </nav>
+          <header className="journal-article-header">
+            <Link
+              to={`/blog/category/${slugify(post.category || "General")}`}
+              className="journal-eyebrow"
+            >
+              {post.category || "Insights"}
+            </Link>
+            <h1>{post.title}</h1>
+            <p>{post.excerpt}</p>
+            <div className="journal-byline">
+              <div className="journal-author-initial" aria-hidden="true">
+                {post.author.slice(0, 1)}
+              </div>
+              <div>
+                <strong>{post.author}</strong>
+                <small>
+                  <time dateTime={post.createdAt}>{post.date}</time> ·{" "}
+                  {post.readTime}
+                  {post.updatedAt.slice(0, 10) !== post.createdAt.slice(0, 10)
+                    ? ` · Updated ${new Date(post.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`
+                    : ""}
+                </small>
+              </div>
+              <div className="journal-share">
+                <button
+                  aria-label="Copy article link"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(url);
+                      toast.success("Article link copied.");
+                    } catch {
+                      toast.error(
+                        "Could not copy the link. Copy the address from your browser.",
+                      );
+                    }
+                  }}
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Blog
-                </Link>
-
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {post.date}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {post.readTime}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <User className="w-4 h-4" />
-                    {post.author}
-                  </span>
-                </div>
-
-                <h1 className="font-display text-4xl md:text-5xl lg:text-6xl text-foreground mb-6">
-                  {post.title}
-                </h1>
-
-                <p className="text-xl text-muted-foreground mb-8">
-                  {post.excerpt}
-                </p>
-
-                <div className="flex flex-wrap gap-2">
-                  {post.tags.map(tag => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 px-3 py-1 text-sm rounded-full bg-primary/10 text-primary"
-                    >
-                      <Tag className="w-3 h-3" />
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </motion.div>
-            </div>
-          </header>
-
-          {/* Featured Image */}
-          <motion.div
-            {...revealInView}
-            transition={{ ...revealTransition, delay: 0.1 }}
-            className="px-6 lg:px-16 py-8"
-          >
-            <div className="max-w-5xl mx-auto">
-              <img
-                src={post.image}
-                alt={post.title}
-                className="w-full aspect-[21/9] object-cover rounded-2xl"
-              />
-            </div>
-          </motion.div>
-
-          {/* Article Content */}
-          <motion.div
-            {...revealInView}
-            transition={{ ...revealTransition, delay: 0.2 }}
-            className="px-6 lg:px-16 py-12 lg:py-16"
-          >
-            <div
-              className="max-w-3xl mx-auto prose prose-lg prose-invert prose-headings:font-display prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-a:text-primary hover:prose-a:text-primary/80"
-              dangerouslySetInnerHTML={{ __html: post.content }}
-            />
-          </motion.div>
-
-          {/* Author Bio */}
-          <motion.div
-            {...revealInView}
-            transition={{ ...revealTransition, delay: 0.3 }}
-            className="px-6 lg:px-16 py-12 border-t border-border"
-          >
-            <div className="max-w-3xl mx-auto">
-              <div className="flex items-center gap-4 p-6 rounded-2xl bg-card border border-border">
-                <img
-                  src="/nimsara-liyanage.jpg"
-                  alt={post.author}
-                  className="w-16 h-16 rounded-full object-cover object-top border-2 border-primary/30"
-                />
-                <div>
-                  <p className="font-medium text-foreground">{post.author}</p>
-                  <p className="text-sm text-muted-foreground">{post.authorRole}</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Passionate about creating digital experiences that make a difference.
-                  </p>
-                </div>
+                  <Link2 size={17} />
+                </button>
+                <a
+                  aria-label="Share on X"
+                  href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(post.title)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  𝕏
+                </a>
+                <a
+                  aria-label="Share on LinkedIn"
+                  href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  in
+                </a>
               </div>
             </div>
-          </motion.div>
-        </article>
-
-        {/* Related Posts */}
-        {relatedPosts.length > 0 && (
-          <section className="py-16 lg:py-24 px-6 lg:px-16 border-t border-border bg-card">
-            <div className="max-w-5xl mx-auto">
-              <motion.h2
-                {...revealInView}
-                transition={revealTransition}
-                className="font-display text-2xl md:text-3xl text-foreground mb-8"
-              >
-                Related Articles
-              </motion.h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {relatedPosts.map((relatedPost, index) => (
-                  <Link to={`/blog/${relatedPost.id}`} key={relatedPost.id}>
-                    <motion.article
-                      {...revealInView}
-                      transition={{ ...revealTransition, delay: index * 0.1 }}
-                      className="group"
+          </header>
+          {post.image && (
+            <figure className="journal-article-image">
+              <img
+                src={post.image}
+                srcSet={post.imageSrcset}
+                sizes="(max-width: 1024px) 100vw, 1100px"
+                alt={post.imageAlt || post.title}
+                width={post.imageWidth}
+                height={post.imageHeight}
+                decoding="async"
+                {...{ fetchpriority: "high" }}
+              />
+            </figure>
+          )}
+          <div className="journal-reading-layout">
+            {headings.length > 0 && (
+              <aside className="journal-toc">
+                <small>IN THIS ARTICLE</small>
+                <nav aria-label="Table of contents">
+                  {headings.map((h) => (
+                    <a
+                      key={h.id}
+                      href={`#${h.id}`}
+                      className={h.level > 2 ? "indented" : ""}
                     >
-                      <div className="overflow-hidden rounded-2xl mb-4 bg-background">
-                        <img
-                          src={relatedPost.image}
-                          alt={relatedPost.title}
-                          className="w-full aspect-[16/10] object-cover transition-transform duration-700 group-hover:scale-105"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-2">{relatedPost.date}</p>
-                      <h3 className="text-lg font-medium text-foreground group-hover:text-primary transition-colors duration-300">
-                        {relatedPost.title}
-                      </h3>
-                    </motion.article>
+                      {h.text}
+                    </a>
+                  ))}
+                </nav>
+              </aside>
+            )}
+            <article className="journal-body cms-prose">
+              <div dangerouslySetInnerHTML={{ __html: content }} />
+              <div className="journal-tags">
+                {post.tags.map((tag) => (
+                  <Link to={`/blog/tag/${slugify(tag)}`} key={tag}>
+                    #{tag}
                   </Link>
                 ))}
               </div>
-            </div>
-          </section>
-        )}
-
+              <div className="journal-author-card">
+                <div className="journal-author-initial">
+                  {post.author.slice(0, 1)}
+                </div>
+                <div>
+                  <small>WRITTEN BY</small>
+                  <h2>{post.author}</h2>
+                  <p>A contributor to the Paxxmo journal.</p>
+                </div>
+              </div>
+            </article>
+          </div>
+          <nav className="journal-next-stories" aria-label="Adjacent articles">
+            {previous ? (
+              <Link to={`/blog/${previous.id}`}>
+                <small>
+                  <ArrowLeft size={14} />
+                  PREVIOUS STORY
+                </small>
+                <strong>{previous.title}</strong>
+              </Link>
+            ) : (
+              <span />
+            )}
+            {next ? (
+              <Link to={`/blog/${next.id}`}>
+                <small>
+                  NEXT STORY
+                  <ArrowRight size={14} />
+                </small>
+                <strong>{next.title}</strong>
+              </Link>
+            ) : (
+              <span />
+            )}
+          </nav>
+          {related.length > 0 && (
+            <section className="journal-stories related">
+              <div className="journal-section-label">
+                KEEP YOUR CURIOSITY GOING <Link to="/blog">ALL STORIES ↗</Link>
+              </div>
+              <div className="journal-grid">
+                {related.map((p) => (
+                  <ArticleCard key={p.id} post={p} />
+                ))}
+              </div>
+            </section>
+          )}
+        </main>
         <Footer />
       </div>
     </>
   );
-};
-
-export default BlogPost;
+}
